@@ -9,9 +9,14 @@ class MarkdownConverter {
         this.copyBtn = document.getElementById('copyBtn');
         this.downloadBtn = document.getElementById('downloadBtn');
         this.clearBtn = document.getElementById('clearBtn');
+        this.easyModeBtn = document.getElementById('easyModeBtn');
+        this.helpTooltip = document.getElementById('helpTooltip');
 
         // State
         this.lastConvertedHTML = '';
+        this.easyModeEnabled = true; // Default ON for better UX
+        this.conversionLog = []; // Track converted lines for debugging
+        this.rawMarkdown = ''; // Store the actual Markdown after transformation
 
         // Initialize the application
         this.init();
@@ -35,11 +40,20 @@ class MarkdownConverter {
         // Bind event listeners
         this.bindEvents();
 
+        // Set initial placeholder for Easy Mode
+        this.updatePlaceholderForEasyMode();
+
+        // Update Easy Mode button state
+        if (this.easyModeBtn) {
+            this.easyModeBtn.textContent = this.easyModeEnabled ? '🎯 Easy Mode: ON' : '📝 Easy Mode: OFF';
+            this.easyModeBtn.className = this.easyModeEnabled ? 'btn btn-success' : 'btn btn-secondary';
+        }
+
         // Initial conversion with placeholder content
         this.convertMarkdown();
 
         // Show welcome message
-        this.showNotification('🚀 Markdown Converter Ready!', 'success');
+        this.showNotification('🚀 Markdown Converter Ready! Easy Mode is ON - try natural language commands!', 'success');
     }
 
     bindEvents() {
@@ -66,6 +80,20 @@ class MarkdownConverter {
             this.clearContent();
         });
 
+        // Easy Mode toggle button
+        if (this.easyModeBtn) {
+            this.easyModeBtn.addEventListener('click', () => {
+                this.toggleEasyMode();
+            });
+        }
+
+        // Help tooltip toggle
+        if (this.helpTooltip) {
+            this.helpTooltip.addEventListener('click', () => {
+                this.toggleHelpModal();
+            });
+        }
+
         // Prevent default drag and drop, add custom handling
         this.markdownInput.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -79,11 +107,19 @@ class MarkdownConverter {
 
     convertMarkdown() {
         try {
-            const markdownText = this.markdownInput.value;
+            let markdownText = this.markdownInput.value;
             
             if (typeof marked === 'undefined') {
                 this.htmlOutput.innerHTML = '<p style="color: #ff6b6b;">❌ Error: marked.js library not loaded. Please check your internet connection.</p>';
                 return;
+            }
+
+            // Apply Easy Mode transformation if enabled
+            if (this.easyModeEnabled) {
+                markdownText = this.transformEasySyntaxToMarkdown(markdownText);
+                this.rawMarkdown = markdownText; // Store transformed markdown
+            } else {
+                this.rawMarkdown = markdownText;
             }
 
             // Convert markdown to HTML
@@ -96,9 +132,191 @@ class MarkdownConverter {
             // Add syntax highlighting class if code blocks exist
             this.addSyntaxHighlighting();
 
+            // Show conversion log if debug mode is enabled
+            this.updateConversionLog();
+
         } catch (error) {
             console.error('Conversion error:', error);
             this.htmlOutput.innerHTML = `<p style="color: #ff6b6b;">❌ Conversion Error: ${error.message}</p>`;
+        }
+    }
+
+    /**
+     * Smart Markdown Input Parser
+     * Transforms natural language commands into valid Markdown syntax
+     * @param {string} inputText - Raw user input
+     * @returns {string} - Transformed Markdown text
+     */
+    transformEasySyntaxToMarkdown(inputText) {
+        if (!inputText || inputText.trim() === '') return inputText;
+
+        const lines = inputText.split('\n');
+        const transformedLines = [];
+        this.conversionLog = []; // Reset conversion log
+
+        lines.forEach((line, index) => {
+            const originalLine = line;
+            let transformedLine = line;
+            let wasTransformed = false;
+
+            // Skip empty lines and lines that are already valid Markdown
+            if (line.trim() === '' || this.isAlreadyMarkdown(line)) {
+                transformedLines.push(line);
+                return;
+            }
+
+            // Transform natural language patterns to Markdown
+            const transformations = [
+                // Headings (must come first to avoid conflicts)
+                { 
+                    pattern: /^heading\s*([1-6]):\s*(.+)$/i, 
+                    replacement: (match, level, text) => '#'.repeat(parseInt(level)) + ' ' + text.trim(),
+                    description: 'Heading conversion'
+                },
+                
+                // Bold text
+                { 
+                    pattern: /^bold\s*this:\s*(.+)$/i, 
+                    replacement: (match, text) => '**' + text.trim() + '**',
+                    description: 'Bold text conversion'
+                },
+                
+                // Italic text
+                { 
+                    pattern: /^italic\s*this:\s*(.+)$/i, 
+                    replacement: (match, text) => '*' + text.trim() + '*',
+                    description: 'Italic text conversion'
+                },
+                
+                // Blockquote
+                { 
+                    pattern: /^quote\s*this:\s*(.+)$/i, 
+                    replacement: (match, text) => '> ' + text.trim(),
+                    description: 'Blockquote conversion'
+                },
+                
+                // Links with URL
+                { 
+                    pattern: /^link\s*this:\s*(.+?)\s*\|\s*(.+)$/i, 
+                    replacement: (match, text, url) => '[' + text.trim() + '](' + url.trim() + ')',
+                    description: 'Link with URL conversion'
+                },
+                
+                // Simple links (just text, auto-detect URL)
+                { 
+                    pattern: /^link\s*this:\s*(https?:\/\/\S+)$/i, 
+                    replacement: (match, url) => '[' + url + '](' + url + ')',
+                    description: 'Auto-link conversion'
+                },
+                
+                // Horizontal rule / line break
+                { 
+                    pattern: /^(break\s*line|new\s*line|horizontal\s*rule|line\s*break)$/i, 
+                    replacement: () => '---',
+                    description: 'Horizontal rule conversion'
+                },
+                
+                // Code inline
+                { 
+                    pattern: /^code\s*this:\s*(.+)$/i, 
+                    replacement: (match, text) => '`' + text.trim() + '`',
+                    description: 'Inline code conversion'
+                },
+                
+                // Unordered list item
+                { 
+                    pattern: /^list\s*item:\s*(.+)$/i, 
+                    replacement: (match, text) => '- ' + text.trim(),
+                    description: 'List item conversion'
+                },
+                
+                // Numbered list item
+                { 
+                    pattern: /^number\s*item:\s*(.+)$/i, 
+                    replacement: (match, text) => '1. ' + text.trim(),
+                    description: 'Numbered list conversion'
+                },
+                
+                // Strikethrough
+                { 
+                    pattern: /^strike\s*this:\s*(.+)$/i, 
+                    replacement: (match, text) => '~~' + text.trim() + '~~',
+                    description: 'Strikethrough conversion'
+                },
+                
+                // Inline patterns within regular text
+                { 
+                    pattern: /\bmake\s*bold:\s*([^,\n]+)/gi, 
+                    replacement: (match, text) => '**' + text.trim() + '**',
+                    description: 'Inline bold conversion'
+                },
+                
+                { 
+                    pattern: /\bmake\s*italic:\s*([^,\n]+)/gi, 
+                    replacement: (match, text) => '*' + text.trim() + '*',
+                    description: 'Inline italic conversion'
+                }
+            ];
+
+            // Apply transformations
+            for (const transformation of transformations) {
+                if (transformation.pattern.test(transformedLine)) {
+                    transformedLine = transformedLine.replace(transformation.pattern, transformation.replacement);
+                    wasTransformed = true;
+                    
+                    // Log the transformation
+                    this.conversionLog.push({
+                        lineNumber: index + 1,
+                        original: originalLine,
+                        transformed: transformedLine,
+                        description: transformation.description
+                    });
+                    break; // Only apply first matching transformation per line
+                }
+            }
+
+            transformedLines.push(transformedLine);
+        });
+
+        return transformedLines.join('\n');
+    }
+
+    /**
+     * Check if a line is already valid Markdown syntax
+     * @param {string} line - Line to check
+     * @returns {boolean} - True if already Markdown
+     */
+    isAlreadyMarkdown(line) {
+        const markdownPatterns = [
+            /^#{1,6}\s+/, // Headers
+            /^\*\*.*\*\*/, // Bold
+            /^\*.*\*/, // Italic
+            /^>\s+/, // Blockquotes
+            /^\[.*\]\(.*\)/, // Links
+            /^-{3,}$/, // Horizontal rules
+            /^`.*`/, // Inline code
+            /^```/, // Code blocks
+            /^[-*+]\s+/, // Unordered lists
+            /^\d+\.\s+/, // Ordered lists
+            /^~~.*~~/, // Strikethrough
+        ];
+
+        return markdownPatterns.some(pattern => pattern.test(line.trim()));
+    }
+
+    /**
+     * Update the conversion log display (for debugging)
+     */
+    updateConversionLog() {
+        // Only show conversion log in console for now
+        if (this.conversionLog.length > 0 && this.easyModeEnabled) {
+            console.group('🔄 Easy Mode Conversions:');
+            this.conversionLog.forEach(log => {
+                console.log(`Line ${log.lineNumber}: ${log.description}`);
+                console.log(`  Original: "${log.original}"`);
+                console.log(`  Transformed: "${log.transformed}"`);
+            });
+            console.groupEnd();
         }
     }
 
@@ -475,6 +693,199 @@ ${htmlContent}
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit'
+        });
+    }
+
+    /**
+     * Toggle Easy Mode on/off
+     */
+    toggleEasyMode() {
+        this.easyModeEnabled = !this.easyModeEnabled;
+        
+        // Update button text and styling
+        if (this.easyModeBtn) {
+            this.easyModeBtn.textContent = this.easyModeEnabled ? '🎯 Easy Mode: ON' : '📝 Easy Mode: OFF';
+            this.easyModeBtn.className = this.easyModeEnabled ? 'btn btn-success' : 'btn btn-secondary';
+        }
+
+        // Re-convert with new mode
+        this.convertMarkdown();
+
+        // Show notification
+        const message = this.easyModeEnabled 
+            ? '🎯 Easy Mode ON! You can now use natural language commands.'
+            : '📝 Easy Mode OFF! Using standard Markdown syntax only.';
+        this.showNotification(message, this.easyModeEnabled ? 'success' : 'info');
+
+        // Update placeholder text
+        if (this.easyModeEnabled) {
+            this.updatePlaceholderForEasyMode();
+        } else {
+            this.updatePlaceholderForMarkdown();
+        }
+    }
+
+    /**
+     * Update placeholder text for Easy Mode
+     */
+    updatePlaceholderForEasyMode() {
+        this.markdownInput.placeholder = `🎯 Easy Mode is ON! Try these natural commands:
+
+Heading 1: My Portfolio
+Heading 2: About Me
+bold this: Welcome to my website
+italic this: This is emphasized text
+quote this: Never give up on your dreams
+link this: Visit GitHub | https://github.com
+list item: First feature
+list item: Second feature
+number item: Step one
+number item: Step two
+code this: console.log('Hello')
+break line
+
+Or use regular Markdown syntax - both work!
+
+## Traditional Markdown
+- **Bold text**
+- *Italic text*
+- [Links](https://example.com)`;
+    }
+
+    /**
+     * Update placeholder text for standard Markdown
+     */
+    updatePlaceholderForMarkdown() {
+        this.markdownInput.placeholder = `# Welcome to Markdown to HTML Converter
+
+Start typing your Markdown here...
+
+## Features:
+- **Real-time preview**
+- Copy to clipboard
+- Download as HTML file
+- Responsive design
+
+### Example Code:
+\`\`\`javascript
+console.log('Hello, World!');
+\`\`\`
+
+> This is a blockquote example
+
+1. Ordered list item 1
+2. Ordered list item 2
+
+- Unordered list item
+- Another item
+
+[Link to GitHub](https://github.com)
+
+*Italic text* and **bold text**`;
+    }
+
+    /**
+     * Toggle help modal with command reference
+     */
+    toggleHelpModal() {
+        // Remove existing modal if present
+        const existingModal = document.querySelector('.help-modal');
+        if (existingModal) {
+            existingModal.remove();
+            return;
+        }
+
+        // Create help modal
+        const modal = document.createElement('div');
+        modal.className = 'help-modal';
+        
+        modal.innerHTML = `
+            <div class="help-modal-content">
+                <div class="help-modal-header">
+                    <h3>🎯 Easy Mode Commands Reference</h3>
+                    <button class="help-close-btn" onclick="this.closest('.help-modal').remove()">✕</button>
+                </div>
+                <div class="help-modal-body">
+                    <div class="help-section">
+                        <h4>📝 Text Formatting</h4>
+                        <div class="help-command">
+                            <code>bold this: Your text</code> → <strong>Your text</strong>
+                        </div>
+                        <div class="help-command">
+                            <code>italic this: Your text</code> → <em>Your text</em>
+                        </div>
+                        <div class="help-command">
+                            <code>strike this: Your text</code> → <del>Your text</del>
+                        </div>
+                        <div class="help-command">
+                            <code>code this: console.log()</code> → <code>console.log()</code>
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h4>📋 Headers & Structure</h4>
+                        <div class="help-command">
+                            <code>Heading 1: Title</code> → <h4 style="margin:5px 0">Title</h4>
+                        </div>
+                        <div class="help-command">
+                            <code>Heading 2: Subtitle</code> → <h5 style="margin:5px 0">Subtitle</h5>
+                        </div>
+                        <div class="help-command">
+                            <code>quote this: Wisdom</code> → <blockquote style="margin:5px 0;padding:5px 10px;border-left:3px solid #4ecdc4;background:rgba(78,205,196,0.1)">Wisdom</blockquote>
+                        </div>
+                        <div class="help-command">
+                            <code>break line</code> → Horizontal rule (---)
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h4>🔗 Links & Lists</h4>
+                        <div class="help-command">
+                            <code>link this: GitHub | https://github.com</code> → <a href="#">GitHub</a>
+                        </div>
+                        <div class="help-command">
+                            <code>list item: Feature one</code> → • Feature one
+                        </div>
+                        <div class="help-command">
+                            <code>number item: Step one</code> → 1. Step one
+                        </div>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h4>💡 Pro Tips</h4>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li>Mix natural commands with regular Markdown syntax</li>
+                            <li>Commands are case-insensitive</li>
+                            <li>One command per line works best</li>
+                            <li>Check browser console for conversion logs</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal styles
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(5px);
+        `;
+
+        document.body.appendChild(modal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
         });
     }
 

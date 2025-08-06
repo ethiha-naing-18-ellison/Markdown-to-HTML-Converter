@@ -95,6 +95,16 @@ header p {
     color: white;
 }
 
+.btn-success {
+    background: linear-gradient(45deg, #2ecc71, #27ae60);
+    color: white;
+}
+
+.btn-info {
+    background: linear-gradient(45deg, #3498db, #2980b9);
+    color: white;
+}
+
 /* Editor Container */
 .editor-container {
     display: grid;
@@ -365,6 +375,103 @@ footer a:hover {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(78, 205, 196, 0.8);
+}
+
+/* Help Modal Styles */
+.help-modal-content {
+    background: rgba(45, 45, 58, 0.95);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    max-width: 800px;
+    max-height: 80vh;
+    width: 90%;
+    overflow-y: auto;
+    color: #e6e6fa;
+}
+
+.help-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(78, 205, 196, 0.1);
+}
+
+.help-modal-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #4ecdc4;
+}
+
+.help-close-btn {
+    background: none;
+    border: none;
+    color: #ff6b6b;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.help-close-btn:hover {
+    background: rgba(255, 107, 107, 0.2);
+    transform: scale(1.1);
+}
+
+.help-modal-body {
+    padding: 25px;
+}
+
+.help-section {
+    margin-bottom: 25px;
+}
+
+.help-section h4 {
+    color: #45b7d1;
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(69, 183, 209, 0.3);
+}
+
+.help-command {
+    margin: 12px 0;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border-left: 3px solid #4ecdc4;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.9rem;
+}
+
+.help-command code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    min-width: 200px;
+}
+
+.help-command strong, .help-command em, .help-command del {
+    color: #4ecdc4;
+}
+
+.help-section ul {
+    color: #b8b8d1;
+    line-height: 1.6;
+}
+
+.help-section ul li {
+    margin: 8px 0;
 }
 
 /* Animation for smooth transitions */
