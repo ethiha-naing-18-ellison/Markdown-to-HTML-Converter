@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown to HTML Converter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Markdown to HTML Converter</h1>
+            <p>Instantly convert Markdown to HTML with live preview</p>
+        </header>
+
+        <div class="controls">
+            <button id="copyBtn" class="btn btn-secondary">📋 Copy HTML</button>
+            <button id="downloadBtn" class="btn btn-primary">⬇️ Download HTML</button>
+            <button id="clearBtn" class="btn btn-danger">🗑️ Clear</button>
+        </div>
+
+        <div class="editor-container">
+            <div class="panel input-panel">
+                <div class="panel-header">
+                    <h3>📝 Markdown Input</h3>
+                    <span class="panel-info">Type your Markdown here</span>
+                </div>
+                <textarea 
+                    id="markdownInput" 
+                    placeholder="# Welcome to Markdown to HTML Converter
+
+Start typing your Markdown here...
+
+## Features:
+- **Real-time preview**
+- Copy to clipboard
+- Download as HTML file
+- Responsive design
+
+### Example Code:
+```javascript
+console.log('Hello, World!');
+```
+
+> This is a blockquote example
+
+1. Ordered list item 1
+2. Ordered list item 2
+
+- Unordered list item
+- Another item
+
+[Link to GitHub](https://github.com)
+
+*Italic text* and **bold text**"
+                ></textarea>
+            </div>
+
+            <div class="panel output-panel">
+                <div class="panel-header">
+                    <h3>🌐 HTML Preview</h3>
+                    <span class="panel-info">Live HTML output</span>
+                </div>
+                <div id="htmlOutput" class="output-content">
+                    <!-- HTML output will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with ❤️ using <a href="https://github.com/markedjs/marked" target="_blank">marked.js</a></p>
+        </footer>
+    </div>
+
+    <!-- Include marked.js library -->
+    <script src="libs/marked.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
